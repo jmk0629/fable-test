@@ -1,0 +1,6 @@
+__pycache__/
+.pytest_cache/
+.DS_Store
+save.fbw
+tmp_save_test.fbw
+*.bmp

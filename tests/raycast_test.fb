@@ -1,0 +1,72 @@
+# 레이캐스팅 기하 검증 (헤드리스, 그래픽 불필요)
+use "../src/world.fb"
+use "../src/raycast.fb"
+
+var FAILS = 0
+
+fn check(name, ok) {
+  if ok == 1 {
+    print("PASS " + name)
+  } else {
+    print("FAIL " + name)
+    FAILS = FAILS + 1
+  }
+}
+
+fn near(a, b) {
+  if abs(a - b) < 0.0001 { return 1 }
+  return 0
+}
+
+fn t_east_ray() {
+  clear_grid()
+  cell_set(10, 5, 3)
+  cast(7.5, 5.5, 1.0, 0.0, 20.0)
+  check("east_hit", RC_HIT)
+  check("east_dist_2.5", near(RC_DIST, 2.5))
+  check("east_type_3", RC_TYPE == 3)
+  check("east_cell", RC_MX == 10 and RC_MY == 5)
+  check("east_prev_cell", RC_PX == 9 and RC_PY == 5)
+  check("east_side_ew", RC_SIDE == 0)
+}
+
+fn t_south_ray() {
+  clear_grid()
+  cell_set(7, 9, 2)
+  cast(7.5, 5.5, 0.0, 1.0, 20.0)
+  check("south_hit", RC_HIT)
+  check("south_dist_3.5", near(RC_DIST, 3.5))
+  check("south_side_ns", RC_SIDE == 1)
+}
+
+fn t_diagonal_ray() {
+  clear_grid()
+  # x = 5 열을 전부 돌로
+  var y = 0
+  while y < GH {
+    cell_set(5, y, 3)
+    y = y + 1
+  }
+  var ang = pi() / 4
+  cast(2.5, 2.4, cos(ang), sin(ang), 20.0)
+  check("diag_hit", RC_HIT)
+  # 유클리드 거리 = (5 - 2.5) / cos(45도) = 2.5 * sqrt(2)
+  check("diag_dist", near(RC_DIST, 2.5 * sqrt(2)))
+  check("diag_cell", RC_MX == 5 and RC_MY == 4)
+  check("diag_side_ew", RC_SIDE == 0)
+}
+
+fn t_max_range() {
+  clear_grid()
+  cast(7.5, 5.5, 1.0, 0.0, 3.0)   # 3칸 안에 아무것도 없음
+  check("range_miss", RC_HIT == 0)
+}
+
+t_east_ray()
+t_south_ray()
+t_diagonal_ray()
+t_max_range()
+
+if FAILS == 0 {
+  print("ALL_OK")
+}

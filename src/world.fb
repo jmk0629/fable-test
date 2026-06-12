@@ -1,0 +1,178 @@
+# ── 월드: 격자 접근, 지형 생성, 저장/불러오기 ───────────────
+use "state.fb"
+
+fn cell_get(x, y) {
+  if x < 0 or y < 0 or x >= GW or y >= GH {
+    return 9
+  }
+  return GRID[y * GW + x]
+}
+
+fn cell_set(x, y, t) {
+  if x >= 0 and y >= 0 and x < GW and y < GH {
+    GRID[y * GW + x] = t
+  }
+}
+
+# 선형 합동 난수 (0 <= r < 1)
+fn rnd() {
+  SEED = (SEED * 1103515245 + 12345) % 2147483648
+  return SEED / 2147483648.0
+}
+
+fn rndi(n) {
+  return floor(rnd() * n)
+}
+
+fn clear_grid() {
+  var i = 0
+  while i < GW * GH {
+    GRID[i] = 0
+    i = i + 1
+  }
+}
+
+# 절차적 지형: 가장자리 기반암 + 돌 동굴벽 + 흙/잔디 언덕 + 나무 기둥/잎
+fn gen_terrain() {
+  clear_grid()
+  var x = 0
+  while x < GW {
+    cell_set(x, 0, 9)
+    cell_set(x, GH - 1, 9)
+    x = x + 1
+  }
+  var y = 0
+  while y < GH {
+    cell_set(0, y, 9)
+    cell_set(GW - 1, y, 9)
+    y = y + 1
+  }
+  # 돌 덩어리들
+  var i = 0
+  while i < 26 {
+    blob(2 + rndi(GW - 4), 2 + rndi(GH - 4), 1 + rndi(3), 3)
+    i = i + 1
+  }
+  # 흙 언덕
+  i = 0
+  while i < 18 {
+    blob(2 + rndi(GW - 4), 2 + rndi(GH - 4), 1 + rndi(2), 2)
+    i = i + 1
+  }
+  # 잔디 둔덕
+  i = 0
+  while i < 18 {
+    blob(2 + rndi(GW - 4), 2 + rndi(GH - 4), 1 + rndi(2), 1)
+    i = i + 1
+  }
+  # 나무: 기둥 1칸 + 주변 잎
+  i = 0
+  while i < 14 {
+    var tx = 3 + rndi(GW - 6)
+    var ty = 3 + rndi(GH - 6)
+    cell_set(tx, ty, 4)
+    if rnd() < 0.8 { cell_set(tx + 1, ty, 5) }
+    if rnd() < 0.8 { cell_set(tx - 1, ty, 5) }
+    if rnd() < 0.8 { cell_set(tx, ty + 1, 5) }
+    if rnd() < 0.8 { cell_set(tx, ty - 1, 5) }
+    i = i + 1
+  }
+  # 스폰 지점 주변은 비워서 갇히지 않게
+  var sy = floor(POSY) - 2
+  while sy <= floor(POSY) + 2 {
+    var sx = floor(POSX) - 2
+    while sx <= floor(POSX) + 2 {
+      if sx > 0 and sy > 0 and sx < GW - 1 and sy < GH - 1 {
+        cell_set(sx, sy, 0)
+      }
+      sx = sx + 1
+    }
+    sy = sy + 1
+  }
+}
+
+fn blob(cx, cy, radius, t) {
+  var y = cy - radius
+  while y <= cy + radius {
+    var x = cx - radius
+    while x <= cx + radius {
+      var dx = x - cx
+      var dy = y - cy
+      if dx * dx + dy * dy <= radius * radius {
+        if x > 0 and y > 0 and x < GW - 1 and y < GH - 1 {
+          cell_set(x, y, t)
+        }
+      }
+      x = x + 1
+    }
+    y = y + 1
+  }
+}
+
+# ── 저장 포맷 ───────────────────────────────────────────────
+# 1행: GW GH
+# 다음 GH행: 셀 타입 숫자 문자들
+# 그 다음: POSX POSY ANG
+# 마지막: SEL 과 COUNTS 10칸
+var DIGITS = "0123456789"
+
+fn save_all(path) {
+  var out = str(GW) + " " + str(GH) + "\n"
+  var y = 0
+  while y < GH {
+    var row = ""
+    var x = 0
+    while x < GW {
+      row = row + substr(DIGITS, GRID[y * GW + x], 1)
+      x = x + 1
+    }
+    out = out + row + "\n"
+    y = y + 1
+  }
+  out = out + str(POSX) + " " + str(POSY) + " " + str(ANG) + "\n"
+  var line = str(SEL)
+  var i = 0
+  while i < 10 {
+    line = line + " " + str(COUNTS[i])
+    i = i + 1
+  }
+  out = out + line + "\n"
+  return write_text(path, out)
+}
+
+fn load_all(path) {
+  var text = read_text(path)
+  if text == nil {
+    return 0
+  }
+  var lines = split(text, "\n")
+  if len(lines) < GH + 3 {
+    return 0
+  }
+  var head = split(lines[0], " ")
+  if num(head[0]) != GW or num(head[1]) != GH {
+    return 0
+  }
+  var y = 0
+  while y < GH {
+    var row = lines[1 + y]
+    var x = 0
+    while x < GW {
+      GRID[y * GW + x] = num(substr(row, x, 1))
+      x = x + 1
+    }
+    y = y + 1
+  }
+  var pose = split(lines[GH + 1], " ")
+  POSX = num(pose[0])
+  POSY = num(pose[1])
+  ANG = num(pose[2])
+  var inv = split(lines[GH + 2], " ")
+  SEL = num(inv[0])
+  var i = 0
+  while i < 10 {
+    COUNTS[i] = num(inv[1 + i])
+    i = i + 1
+  }
+  return 1
+}

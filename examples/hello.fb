@@ -1,0 +1,15 @@
+# Fable 기본 문법 데모
+var greeting = "Hello, Fable!"
+print(greeting)
+
+fn add(a, b) {
+  return a + b
+}
+
+var x = add(2, 3) * 4
+print("2 plus 3, times 4 = " + str(x))
+print("sqrt(2) is about " + str(floor(sqrt(2) * 1000) / 1000.0))
+
+var items = [10, 20, 30]
+push(items, 40)
+print("items: " + str(items) + " (len " + str(len(items)) + ")")

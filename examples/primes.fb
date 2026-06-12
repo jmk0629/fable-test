@@ -1,0 +1,30 @@
+# 에라토스테네스의 체: 배열, 중첩 루프, 함수 데모
+fn sieve(limit) {
+  var flags = arr(limit + 1, 1)
+  flags[0] = 0
+  flags[1] = 0
+  var p = 2
+  while p * p <= limit {
+    if flags[p] == 1 {
+      var q = p * p
+      while q <= limit {
+        flags[q] = 0
+        q = q + p
+      }
+    }
+    p = p + 1
+  }
+  var found = []
+  var i = 0
+  while i <= limit {
+    if flags[i] == 1 {
+      push(found, i)
+    }
+    i = i + 1
+  }
+  return found
+}
+
+var primes = sieve(50)
+print("primes up to 50: " + str(primes))
+print("count: " + str(len(primes)))

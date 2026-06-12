@@ -1,0 +1,69 @@
+# ── 플레이어 행동: 이동, 회전, 채굴, 설치 ───────────────────
+use "state.fb"
+use "world.fb"
+use "raycast.fb"
+
+var MOVE_SPEED = 4.0    # 칸/초
+var TURN_SPEED = 2.6    # 라디안/초
+var BODY_PAD = 0.2      # 벽과의 최소 간격
+
+fn can_stand(x, y) {
+  # 몸 반경만큼 네 모서리가 모두 빈칸이어야 함
+  if cell_get(floor(x - BODY_PAD), floor(y - BODY_PAD)) > 0 { return 0 }
+  if cell_get(floor(x + BODY_PAD), floor(y - BODY_PAD)) > 0 { return 0 }
+  if cell_get(floor(x - BODY_PAD), floor(y + BODY_PAD)) > 0 { return 0 }
+  if cell_get(floor(x + BODY_PAD), floor(y + BODY_PAD)) > 0 { return 0 }
+  return 1
+}
+
+# 축 분리 이동: 한 축씩 시도해서 벽에 비비며 미끄러지게
+fn move_by(dist) {
+  var nx = POSX + cos(ANG) * dist
+  if can_stand(nx, POSY) == 1 {
+    POSX = nx
+  }
+  var ny = POSY + sin(ANG) * dist
+  if can_stand(POSX, ny) == 1 {
+    POSY = ny
+  }
+}
+
+fn turn_by(delta) {
+  ANG = ANG + delta
+  var two_pi = 2 * pi()
+  while ANG < 0 { ANG = ANG + two_pi }
+  while ANG >= two_pi { ANG = ANG - two_pi }
+}
+
+# 바라보는 블록 채굴: 성공하면 1
+fn do_dig() {
+  if cast_aim() == 0 {
+    return 0
+  }
+  if RC_TYPE == 9 {
+    return 0    # 기반암은 못 캠
+  }
+  COUNTS[RC_TYPE] = COUNTS[RC_TYPE] + 1
+  cell_set(RC_MX, RC_MY, 0)
+  return 1
+}
+
+# 바라보는 블록 면 앞 칸에 설치: 성공하면 1
+fn do_put() {
+  if COUNTS[SEL] <= 0 {
+    return 0
+  }
+  if cast_aim() == 0 {
+    return 0
+  }
+  # 설치 위치는 광선이 마지막으로 통과한 빈 칸
+  if RC_PX == floor(POSX) and RC_PY == floor(POSY) {
+    return 0    # 자기 발밑에는 설치 금지
+  }
+  if cell_get(RC_PX, RC_PY) > 0 {
+    return 0
+  }
+  cell_set(RC_PX, RC_PY, SEL)
+  COUNTS[SEL] = COUNTS[SEL] - 1
+  return 1
+}

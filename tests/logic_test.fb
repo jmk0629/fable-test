@@ -1,0 +1,115 @@
+# 채굴 / 설치 / 저장·불러오기 검증 (헤드리스)
+use "../src/world.fb"
+use "../src/raycast.fb"
+use "../src/actions.fb"
+
+var FAILS = 0
+
+fn check(name, ok) {
+  if ok == 1 {
+    print("PASS " + name)
+  } else {
+    print("FAIL " + name)
+    FAILS = FAILS + 1
+  }
+}
+
+# ── 채굴 ──
+fn t_dig() {
+  clear_grid()
+  POSX = 7.5
+  POSY = 5.5
+  ANG = 0.0
+  cell_set(10, 5, 3)
+  check("dig_returns_1", do_dig())
+  check("dig_cell_now_empty", cell_get(10, 5) == 0)
+  check("dig_count_up", COUNTS[3] == 1)
+  # 사거리(6) 밖이면 실패해야
+  cell_set(20, 5, 3)
+  check("dig_out_of_reach", do_dig() == 0)
+  # 기반암은 못 캠
+  cell_set(10, 5, 9)
+  check("dig_no_bedrock", do_dig() == 0)
+  cell_set(10, 5, 0)
+  cell_set(20, 5, 0)
+}
+
+# ── 설치 ──
+fn t_put() {
+  clear_grid()
+  POSX = 7.5
+  POSY = 5.5
+  ANG = 0.0
+  SEL = 3
+  COUNTS[3] = 2
+  cell_set(10, 5, 4)            # 과녁 벽
+  check("put_returns_1", do_put())
+  check("put_cell_set", cell_get(9, 5) == 3)   # 벽 바로 앞 칸
+  check("put_count_down", COUNTS[3] == 1)
+  # 빈 손이면 실패
+  COUNTS[3] = 0
+  check("put_needs_stock", do_put() == 0)
+  # 허공에 대고는 실패
+  COUNTS[3] = 5
+  clear_grid()
+  check("put_needs_target", do_put() == 0)
+}
+
+# ── 저장/불러오기 ──
+# 저장 경로는 argv로 받을 수 있다 (pytest가 임시 경로를 넘긴다)
+var SAVE_AT = "tmp_save_test.fbw"
+if len(argv()) > 0 {
+  SAVE_AT = argv()[0]
+}
+
+fn t_save_load() {
+  clear_grid()
+  POSX = 12.5
+  POSY = 8.25
+  ANG = 1.5
+  SEL = 2
+  COUNTS[1] = 7
+  COUNTS[3] = 4
+  cell_set(3, 3, 1)
+  cell_set(20, 30, 5)
+  check("save_ok", save_all(SAVE_AT))
+  # 상태를 흐트러뜨린 뒤
+  clear_grid()
+  POSX = 1.0
+  POSY = 1.0
+  ANG = 0.0
+  SEL = 1
+  COUNTS[1] = 0
+  COUNTS[3] = 0
+  check("load_ok", load_all(SAVE_AT))
+  check("load_cell_a", cell_get(3, 3) == 1)
+  check("load_cell_b", cell_get(20, 30) == 5)
+  check("load_pos", abs(POSX - 12.5) < 0.0001 and abs(POSY - 8.25) < 0.0001)
+  check("load_ang", abs(ANG - 1.5) < 0.0001)
+  check("load_sel", SEL == 2)
+  check("load_counts", COUNTS[1] == 7 and COUNTS[3] == 4)
+  check("load_missing_file", load_all("no_such_file.fbw") == 0)
+}
+
+# ── 이동/충돌 ──
+fn t_move() {
+  clear_grid()
+  POSX = 5.5
+  POSY = 5.5
+  ANG = 0.0
+  cell_set(6, 5, 3)             # 코앞에 벽
+  move_by(1.0)
+  check("move_hits_wall", POSX < 6.0)
+  cell_set(6, 5, 0)
+  move_by(1.0)
+  check("move_through_air", abs(POSX - 6.5) < 0.0001)
+}
+
+t_dig()
+t_put()
+t_save_load()
+t_move()
+
+if FAILS == 0 {
+  print("ALL_OK")
+}

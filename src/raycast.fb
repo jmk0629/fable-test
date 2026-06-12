@@ -1,0 +1,77 @@
+# ── 레이캐스팅 (DDA) ────────────────────────────────────────
+# (ox,oy)에서 방향 (dx,dy)로 광선을 쏘아 첫 번째 솔리드 셀을 찾는다.
+# 격자 경계를 한 칸씩 건너며(tmax/tdelta), 명중 시 RC_* 전역에 기록.
+#
+# dx,dy가 카메라 평면 방식(dir + plane*camx)으로 주어지면 RC_DIST는
+# 어안 왜곡 없는 perpendicular 거리가 된다. 단위 벡터로 주어지면
+# 유클리드 거리다 (조준 광선이 이 경우).
+use "state.fb"
+
+fn cast(ox, oy, dx, dy, maxd) {
+  var mx = floor(ox)
+  var my = floor(oy)
+  var stepx = 0
+  var stepy = 0
+  var tdx = 1000000000.0
+  var tdy = 1000000000.0
+  var tx = 1000000000.0
+  var ty = 1000000000.0
+  if dx > 0 {
+    stepx = 1
+    tdx = 1.0 / dx
+    tx = (mx + 1 - ox) * tdx
+  }
+  if dx < 0 {
+    stepx = 0 - 1
+    tdx = 0.0 - 1.0 / dx
+    tx = (ox - mx) * tdx
+  }
+  if dy > 0 {
+    stepy = 1
+    tdy = 1.0 / dy
+    ty = (my + 1 - oy) * tdy
+  }
+  if dy < 0 {
+    stepy = 0 - 1
+    tdy = 0.0 - 1.0 / dy
+    ty = (oy - my) * tdy
+  }
+  var dist = 0.0
+  var side = 0
+  while 1 {
+    RC_PX = mx
+    RC_PY = my
+    if tx < ty {
+      dist = tx
+      tx = tx + tdx
+      mx = mx + stepx
+      side = 0
+    } else {
+      dist = ty
+      ty = ty + tdy
+      my = my + stepy
+      side = 1
+    }
+    if dist > maxd {
+      RC_HIT = 0
+      RC_TYPE = 0
+      RC_DIST = maxd
+      return 0
+    }
+    var t = cell_get(mx, my)
+    if t > 0 {
+      RC_HIT = 1
+      RC_DIST = dist
+      RC_SIDE = side
+      RC_TYPE = t
+      RC_MX = mx
+      RC_MY = my
+      return 1
+    }
+  }
+}
+
+# 시선 중앙으로 조준 광선 (유클리드 거리)
+fn cast_aim() {
+  return cast(POSX, POSY, cos(ANG), sin(ANG), REACH)
+}

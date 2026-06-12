@@ -1,0 +1,27 @@
+# ── 게임 전역 상태 ──────────────────────────────────────────
+# 월드 격자: GW x GH, 셀 값 = 블록 타입
+#   0 빈칸  1 잔디  2 흙  3 돌  4 나무  5 잎  9 기반암(채굴 불가)
+var GW = 48
+var GH = 48
+var GRID = arr(GW * GH, 0)
+var SEED = 20260612
+
+# 플레이어 자세
+var POSX = 24.5
+var POSY = 24.5
+var ANG = 0.0
+
+# 인벤토리: 타입별 보유 개수 (인덱스 = 블록 타입)
+var COUNTS = arr(10, 0)
+var SEL = 1          # 선택된 블록 타입 (1~5)
+var REACH = 6.0      # 채굴/설치 사거리
+
+# 레이캐스트 결과 (cast가 채움)
+var RC_HIT = 0       # 1이면 명중
+var RC_DIST = 0.0    # perpendicular 거리 (렌더용) / 중앙 광선은 유클리드 거리
+var RC_SIDE = 0      # 0 = 동서면, 1 = 남북면
+var RC_TYPE = 0      # 맞은 블록 타입
+var RC_MX = 0        # 맞은 셀 좌표
+var RC_MY = 0
+var RC_PX = 0        # 맞은 셀 직전(광선이 통과한) 셀 — 설치 위치
+var RC_PY = 0

@@ -1,0 +1,115 @@
+# ── Fable Craft: 메인 루프 ──────────────────────────────────
+# 실행:  python3 interpreter.py src/main.fb
+# 옵션:  --bench N    헤드리스 벤치마크 (N 프레임, FABLE_HEADLESS=1 권장)
+#        --seconds N  N초 후 자동 종료 (FPS 검증용)
+use "state.fb"
+use "world.fb"
+use "raycast.fb"
+use "actions.fb"
+use "render.fb"
+
+var SAVE_PATH = "save.fbw"
+
+fn main() {
+  # 인자 파싱
+  var bench = 0
+  var seconds = 0
+  var args = argv()
+  var i = 0
+  while i < len(args) {
+    if args[i] == "--bench" and i + 1 < len(args) {
+      bench = num(args[i + 1])
+    }
+    if args[i] == "--seconds" and i + 1 < len(args) {
+      seconds = num(args[i + 1])
+    }
+    i = i + 1
+  }
+
+  gen_terrain()
+  gfx_open(SW, SH, 4, "Fable Craft")
+
+  var start = clock_ms()
+  var last = start
+  var frames = 0
+  var fps = 0
+  var fps_count = 0
+  var fps_mark = start
+
+  # 키 엣지 검출용 이전 상태
+  var pe = 0
+  var pf = 0
+  var pp = 0
+  var pl = 0
+
+  while gfx_done() == 0 {
+    var now = clock_ms()
+    var dt = (now - last) / 1000.0
+    last = now
+    if dt > 0.1 { dt = 0.1 }
+    if bench > 0 { dt = 0.016 }
+
+    if key("escape") == 1 { break }
+
+    # 이동/회전
+    if key("w") == 1 { move_by(MOVE_SPEED * dt) }
+    if key("s") == 1 { move_by(0 - MOVE_SPEED * dt) }
+    if key("a") == 1 { turn_by(0 - TURN_SPEED * dt) }
+    if key("d") == 1 { turn_by(TURN_SPEED * dt) }
+
+    # 블록 선택
+    if key("1") == 1 { SEL = 1 }
+    if key("2") == 1 { SEL = 2 }
+    if key("3") == 1 { SEL = 3 }
+    if key("4") == 1 { SEL = 4 }
+    if key("5") == 1 { SEL = 5 }
+
+    # 채굴/설치/저장/불러오기 (누르는 순간 한 번만)
+    var ke = key("e")
+    if ke == 1 and pe == 0 { do_dig() }
+    pe = ke
+    var kf = key("f")
+    if kf == 1 and pf == 0 { do_put() }
+    pf = kf
+    var kp = key("p")
+    if kp == 1 and pp == 0 {
+      save_all(SAVE_PATH)
+      print("saved -> " + SAVE_PATH)
+    }
+    pp = kp
+    var kl = key("l")
+    if kl == 1 and pl == 0 {
+      if load_all(SAVE_PATH) == 1 {
+        print("loaded <- " + SAVE_PATH)
+      }
+    }
+    pl = kl
+
+    # 벤치마크 모드: 화면을 계속 돌려서 다양한 장면을 렌더
+    if bench > 0 { turn_by(0.05) }
+
+    draw_view()
+    draw_hud(fps)
+    gfx_flush()
+
+    frames = frames + 1
+    fps_count = fps_count + 1
+    if now - fps_mark >= 1000 {
+      fps = fps_count
+      fps_count = 0
+      fps_mark = now
+      print("fps " + str(fps))
+    }
+    if bench > 0 and frames >= bench {
+      var total = clock_ms() - start
+      print("bench_frames " + str(frames))
+      print("bench_avg_ms " + str(floor(total / frames * 100) / 100.0))
+      break
+    }
+    if seconds > 0 and now - start >= seconds * 1000 {
+      break
+    }
+  }
+}
+
+main()

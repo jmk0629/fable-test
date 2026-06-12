@@ -1,0 +1,74 @@
+# ── 1인칭 렌더러: 세로 스트립 레이캐스트 ────────────────────
+# 화면 각 칼럼마다 카메라 평면 방식으로 광선을 쏘고,
+# perpendicular 거리에 반비례하는 높이의 세로 스트립을 그린다.
+use "state.fb"
+use "raycast.fb"
+
+var SW = 240          # 내부 해상도
+var SH = 150
+var HALF_H = 75
+var COLW = 2          # 스트립 폭(픽셀) → 광선 수 = SW / COLW
+var NCOL = 120
+var PLANE = 0.66      # 카메라 평면 길이 (시야각 결정)
+
+# 블록 타입별 기본 색 (인덱스 = 타입)
+var COL_R = [0, 96, 134, 128, 110, 52, 0, 0, 0, 40]
+var COL_G = [0, 168, 96, 128, 78, 140, 0, 0, 0, 40]
+var COL_B = [0, 64, 54, 128, 38, 48, 0, 0, 0, 48]
+
+fn draw_view() {
+  # 하늘과 바닥
+  gfx_rect(0, 0, SW, HALF_H, 120, 175, 235)
+  gfx_rect(0, HALF_H, SW, HALF_H, 96, 86, 70)
+
+  var dirx = cos(ANG)
+  var diry = sin(ANG)
+  var plx = 0 - diry * PLANE
+  var ply = dirx * PLANE
+
+  var c = 0
+  while c < NCOL {
+    var camx = 2.0 * c / NCOL - 1.0
+    cast(POSX, POSY, dirx + plx * camx, diry + ply * camx, 28.0)
+    if RC_HIT == 1 {
+      var d = RC_DIST
+      if d < 0.04 { d = 0.04 }
+      var h = floor(SH / d)
+      # 거리 안개 + 남북면 음영
+      var f = 1.0 / (1.0 + d * 0.09)
+      if RC_SIDE == 1 { f = f * 0.72 }
+      var t = RC_TYPE
+      gfx_rect(c * COLW, HALF_H - h / 2, COLW, h,
+               COL_R[t] * f, COL_G[t] * f, COL_B[t] * f)
+    }
+    c = c + 1
+  }
+}
+
+fn draw_hud(fps) {
+  # 조준점
+  gfx_rect(SW / 2 - 3, SH / 2, 7, 1, 255, 255, 255)
+  gfx_rect(SW / 2, SH / 2 - 3, 1, 7, 255, 255, 255)
+
+  # 핫바: 타입 1~5
+  var slot = 1
+  while slot <= 5 {
+    var x = SW / 2 - 45 + (slot - 1) * 18
+    var y = SH - 20
+    if slot == SEL {
+      gfx_rect(x - 2, y - 2, 18, 18, 255, 255, 255)
+    } else {
+      gfx_rect(x - 1, y - 1, 16, 16, 30, 30, 30)
+    }
+    gfx_rect(x, y, 14, 14, COL_R[slot], COL_G[slot], COL_B[slot])
+    gfx_text(x + 4, y + 3, str(COUNTS[slot]), 255, 255, 80, 7)
+    slot = slot + 1
+  }
+
+  # 조준 중인 블록 거리 표시
+  if cast_aim() == 1 {
+    gfx_text(SW / 2 - 14, SH / 2 + 6, str(floor(RC_DIST * 10) / 10.0) + "m", 230, 230, 230, 6)
+  }
+  gfx_text(3, 3, "FPS " + str(fps), 255, 255, 255, 7)
+  gfx_text(3, SH - 9, "WS move AD turn E dig F put 1-5 sel P save L load", 220, 220, 220, 5)
+}
